@@ -1,23 +1,33 @@
 library(lmtest)
 library(PoEdata) #for PoE4 datasets
-library(car)
 library("skedastic")
 library(boot)
 library(lmboot)
 library(sandwich)
+library(ggplot2)
+library(xtable)
+library(knitr)
 
 # importing dataset from PoEdata package and fitting a simple linear regression
 data("food", package = "PoEdata")
 mod1 <- lm(food_exp ~ income, data = food)
-plot(food$income, food$food_exp,
-     xlab = "income", ylab = "food expenditure",
-     main = "Linear regression")
-abline(mod1, col = "blue")
+ggplot(food, aes(x = income, y = food_exp)) +
+  geom_point() +
+  ggtitle("Linear regression") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  xlab("Income") + ylab("Food expenditure")+
+  stat_smooth(method = "lm", formula = y ~ x, col = "red")
 
 # residual analysis
+library(broom)
+# extracting data from regression in a dataframe
+df <- augment(mod1)
 res <- residuals(mod1)
-plot(food$income, res, xlab = "income", ylab = "residuals", main = "Residual analysis")
-abline(0, 0, col = "red")
+ggplot(df, aes(x = .fitted, y = .resid)) +
+  geom_point() + ggtitle("Residual analysis") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  xlab("Fitted values") + ylab("Residuals") +
+  geom_hline(yintercept = 0, color = "red")
 
 # testing for heteroskedasticity
 # breusch-pagan test
@@ -66,9 +76,10 @@ se_wb <- sd(wboot_income)
 
 # final vector with all the se(income)
 # the wild bootstrap performs better because of heteroskedasticity
-se <- c(se_ols, hc, se_npb, se_wb)
-names(se) <- c("Original se(income)", "HC0", "Bootstrap", "wild.bootstrap")
-se
+se <- data.frame(c(se_ols, hc, se_npb, se_wb), 
+                 c("OLS", "HC1", "NP Bootstrap", "Wild bootstrap"))
+colnames(se) <- c("SE(Income)", "Estimation type")
+kable(se)
 
 # this shows that 1 np bootstrap sample doesn't replicate hsk, therefore it is unaccurate
 # manually sampling with replacement from the original vectors
